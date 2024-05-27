@@ -1,19 +1,20 @@
-FROM node:10-alpine
+# Use the official Node.js image as the base image
+FROM node:16-alpine
 
-# Create app directory
-RUN mkdir -p /app
-
+# Set the working directory
 WORKDIR /app
 
-# Install app dependencies
-COPY app/package.json app/package-lock.json ./
+# Copy package.json and package-lock.json
+COPY package.json package-lock.json ./
 
+# Install dependencies
 RUN npm install
 
-# Bundle app source
+# Copy the rest of the application code
 COPY . .
 
+# Expose the port the app runs on
 EXPOSE 3000
 
-CMD [ "npm", "start" ]
-
+# Define the command to run the app
+CMD ["npm", "start"]
