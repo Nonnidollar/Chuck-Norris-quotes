@@ -13,19 +13,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Set up .NET
-        uses: actions/setup-dotnet@v1
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
         with:
-          dotnet-version: '8.0.x'
+          node-version: '20'
 
-      - name: Build and publish
+      - name: Install dependencies
         run: |
-          dotnet build --configuration Release
-          dotnet publish --configuration Release --output ./output
+          npm install
 
       - name: Build Docker image
         run: |
-          docker build -t mydotnetapp:latest .
+          docker build -t mynodejsapp:latest .
 
       - name: Login to Azure Container Registry
         run: |
@@ -33,8 +32,8 @@ jobs:
 
       - name: Push Docker image
         run: |
-          docker tag mydotnetapp:latest myaksregistry.azurecr.io/mydotnetapp:latest
-          docker push myaksregistry.azurecr.io/mydotnetapp:latest
+          docker tag mynodejsapp:latest myaksregistry.azurecr.io/mynodejsapp:latest
+          docker push myaksregistry.azurecr.io/mynodejsapp:latest
 
   deploy:
     needs: build
@@ -59,4 +58,7 @@ jobs:
         run: |
           kubectl apply -f k8s-deployment.yaml
 
+
+     
+          
        
