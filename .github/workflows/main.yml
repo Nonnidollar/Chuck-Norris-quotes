@@ -21,6 +21,7 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      # This step ensures the AWS credentials are properly configured
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -28,17 +29,19 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
+      # Log in to Amazon ECR
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v1
 
+      # Build the Docker image
       - name: Build Docker image
-        run: |
-          docker build -t my-node-app .
+        run: docker build -t my-node-app .
 
+      # Tag the Docker image
       - name: Tag Docker image
         run: |
           docker tag my-node-app:latest ${{ secrets.ECR_REPOSITORY_URI }}:latest
 
+      # Push the Docker image to ECR
       - name: Push Docker image to ECR
-        run: |
-          docker push ${{ secrets.ECR_REPOSITORY_URI }}:latest
+        run: docker push ${{ secrets.ECR_REPOSITORY_URI }}:latest
