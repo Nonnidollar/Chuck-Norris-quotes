@@ -23,10 +23,44 @@ jobs:
       - name: Install Dependencies
         run: npm install
 
-  # 2. Build Docker Image and Push to Docker Hub
+      - name: Run Tests
+        run: npm test  # Ensure you have a test script in package.json
+
+  # 2. Apply Terraform and Capture EC2 IP/DNS
+  terraform:
+    name: Apply Terraform and Capture EC2 IP/DNS
+    runs-on: ubuntu-latest
+    needs: test  # Run this job only after tests pass
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve
+
+      - name: Capture EC2 Public IP from Terraform
+        id: ec2_output
+        run: |
+          echo "EC2_PUBLIC_IP=$(terraform output -raw ec2_public_ip)" >> $GITHUB_ENV
+          echo "EC2_PUBLIC_DNS=$(terraform output -raw ec2_public_dns)" >> $GITHUB_ENV
+
+      - name: Set EC2_HOST as GitHub Secret
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh secret set EC2_HOST --body "$EC2_PUBLIC_IP"
+
+  # 3. Build Docker Image and Push to Docker Hub
   build:
     name: Build and Push Docker Image
-    needs: test  # Only run if tests pass
+    needs: terraform  # Only run after the Terraform job is successful
     runs-on: ubuntu-latest
 
     steps:
@@ -42,10 +76,10 @@ jobs:
       - name: Push Docker Image to Docker Hub
         run: docker push ${{ secrets.DOCKER_USERNAME }}/nodejs-app:latest
 
-  # 3. SSH into EC2 and Deploy Docker Container
+  # 4. SSH into EC2 and Deploy Docker Container
   deploy:
     name: Deploy to EC2
-    needs: build  # Only run if the build job is successful
+    needs: build  # Only run after the build job is successful
     runs-on: ubuntu-latest
 
     steps:
@@ -60,6 +94,7 @@ jobs:
       - name: Deploy Docker Container to EC2
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            set -e
             docker pull ${{ secrets.DOCKER_USERNAME }}/nodejs-app:latest
             docker stop nodejs-app || true
             docker rm nodejs-app || true
