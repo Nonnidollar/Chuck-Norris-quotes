@@ -1,0 +1,67 @@
+name: CI/CD Pipeline for Node.js App
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  # 1. Run Unit Tests
+  test:
+    name: Run Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '20'
+
+      - name: Install Dependencies
+        run: npm install
+
+  # 2. Build Docker Image and Push to Docker Hub
+  build:
+    name: Build and Push Docker Image
+    needs: test  # Only run if tests pass
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: Log in to Docker Hub
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+      - name: Build Docker Image
+        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/nodejs-app:latest .
+
+      - name: Push Docker Image to Docker Hub
+        run: docker push ${{ secrets.DOCKER_USERNAME }}/nodejs-app:latest
+
+  # 3. SSH into EC2 and Deploy Docker Container
+  deploy:
+    name: Deploy to EC2
+    needs: build  # Only run if the build job is successful
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: Add SSH Key
+        uses: webfactory/ssh-agent@v0.5.3
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Deploy Docker Container to EC2
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            docker pull ${{ secrets.DOCKER_USERNAME }}/nodejs-app:latest
+            docker stop nodejs-app || true
+            docker rm nodejs-app || true
+            docker run -d -p 80:3000 --name nodejs-app ${{ secrets.DOCKER_USERNAME }}/nodejs-app:latest
+          EOF
