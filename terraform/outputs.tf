@@ -1,6 +1,6 @@
 # Output the ECR repository URL
 output "ecr_repository_url" {
-  description = "The URL of the ECR repository"
+  description = "The URL of the ECR repository"app_instance
   value       = aws_ecr_repository.app_repo.repository_url
 }
 
@@ -19,7 +19,7 @@ output "vpc_id" {
 # Output the EC2 Instance ID
 output "ec2_instance_id" {
   description = "The ID of the created EC2 instance"
-  value       = aws_instance.app_instance_with_profile.id
+  value       = aws_instance._with_profile.id
 }
 
 # Output the IAM role used by the EC2 instance
@@ -27,4 +27,12 @@ output "ec2_iam_role" {
   description = "The IAM role associated with the EC2 instance"
   value       = aws_iam_role.ecr_access_role.name
 }
+
+# Output the EC2 Public DNS ID
+output "ec2_public_dns" {
+  description = "The Public DNS of the created EC2 instance"
+  value       = aws_instance.app_instance_with_profile.public_dns
+}
+
+
 
