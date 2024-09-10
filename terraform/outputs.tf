@@ -1,8 +1,9 @@
 # Output the ECR repository URL
 output "ecr_repository_url" {
-  description = "The URL of the ECR repository"app_instance
+  description = "The URL of the ECR repository"
   value       = aws_ecr_repository.app_repo.repository_url
 }
+
 
 # Output the EC2 instance public IP
 output "ec2_public_ip" {
