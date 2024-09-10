@@ -1,11 +1,7 @@
 variable "key_pair_name" {
-  description = "The name of the EC2 key pair"
+  description = "The name of the existing EC2 key pair"
   type        = string
-}
-
-variable "public_key_path" {
-  description = "The path to the public SSH key"
-  type        = string
+  default     = "Caleb-key"  # Optional default value
 }
 
 
