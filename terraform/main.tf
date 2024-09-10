@@ -83,11 +83,6 @@ resource "aws_security_group" "app_sg" {
   }
 }
 
-# Reference an existing Key Pair for SSH access
-resource "aws_key_pair" "my_key_pair" {
-  key_name = var.key_pair_name  # Reference the existing key pair dynamically
-}
-
 # Create an ECR repository
 resource "aws_ecr_repository" "app_repo" {
   name                 = "my-app-repo"
