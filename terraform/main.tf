@@ -158,7 +158,7 @@ resource "aws_instance" "app_instance_with_profile" {
   instance_type               = "t2.micro"
   subnet_id                   = aws_subnet.public_subnet.id
   vpc_security_group_ids       = [aws_security_group.app_sg.id]
-  key_name                    = aws_key_pair.my_key_pair.key_name
+  key_name                    = "Caleb-key"
   iam_instance_profile        = aws_iam_instance_profile.instance_profile.name
 
   tags = {
