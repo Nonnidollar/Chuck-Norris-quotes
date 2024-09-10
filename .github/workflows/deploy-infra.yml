@@ -47,17 +47,30 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v1
 
+      # Change directory to where the Terraform configuration files are
+      - name: Change directory to Terraform
+        working-directory: terraform
+        run: echo "Switched to terraform directory"
+
+      # Run Terraform Init
       - name: Terraform Init
+        working-directory: terraform
         run: terraform init
 
+      # Run Terraform Plan
       - name: Terraform Plan
+        working-directory: terraform
         run: terraform plan
 
+      # Run Terraform Apply
       - name: Terraform Apply
+        working-directory: terraform
         run: terraform apply -auto-approve
 
+      # Capture EC2 Public IP and DNS from Terraform
       - name: Capture EC2 Public IP and DNS from Terraform
         id: ec2_output
+        working-directory: terraform
         run: |
           echo "EC2_PUBLIC_IP=$(terraform output -raw ec2_public_ip)" >> $GITHUB_ENV
           echo "EC2_PUBLIC_DNS=$(terraform output -raw ec2_public_dns)" >> $GITHUB_ENV
