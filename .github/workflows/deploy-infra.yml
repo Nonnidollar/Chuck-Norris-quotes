@@ -42,7 +42,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}  # Use the AWS region secret here
+          aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v1
@@ -50,24 +50,21 @@ jobs:
       - name: Terraform Init
         run: terraform init
 
+      - name: Terraform Plan
+        run: terraform plan
+
       - name: Terraform Apply
         run: terraform apply -auto-approve
 
-      - name: Capture EC2 Public IP from Terraform
+      - name: Capture EC2 Public IP and DNS from Terraform
         id: ec2_output
         run: |
           echo "EC2_PUBLIC_IP=$(terraform output -raw ec2_public_ip)" >> $GITHUB_ENV
           echo "EC2_PUBLIC_DNS=$(terraform output -raw ec2_public_dns)" >> $GITHUB_ENV
 
-      - name: Set EC2_HOST as GitHub Secret
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh secret set EC2_HOST --body "$EC2_PUBLIC_IP"
-
-  # 3. Build Docker Image and Push to Docker Hub
+  # 3. Build Docker Image and Push to Amazon ECR
   build:
-    name: Build and Push Docker Image
+    name: Build and Push Docker Image to Amazon ECR
     needs: terraform  # Only run after the Terraform job is successful
     runs-on: ubuntu-latest
 
@@ -75,14 +72,24 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v2
 
-      - name: Log in to Docker Hub
-        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+      # Log in to Amazon ECR
+      - name: Log in to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v1
 
+      # Build the Docker image
       - name: Build Docker Image
-        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/nodejs-app:latest .
+        run: |
+          IMAGE_TAG=$(echo ${{ github.sha }} | cut -c1-7)
+          docker build -t my-app:$IMAGE_TAG .
+          docker tag my-app:$IMAGE_TAG ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/my-app:$IMAGE_TAG
+          docker tag my-app:$IMAGE_TAG ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/my-app:latest
 
-      - name: Push Docker Image to Docker Hub
-        run: docker push ${{ secrets.DOCKER_USERNAME }}/nodejs-app:latest
+      # Push the Docker image to Amazon ECR
+      - name: Push Docker Image to Amazon ECR
+        run: |
+          IMAGE_TAG=$(echo ${{ github.sha }} | cut -c1-7)
+          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/my-app:$IMAGE_TAG
+          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/my-app:latest
 
   # 4. SSH into EC2 and Deploy Docker Container
   deploy:
@@ -101,10 +108,11 @@ jobs:
 
       - name: Deploy Docker Container to EC2
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+          IMAGE_TAG=$(echo ${{ github.sha }} | cut -c1-7)
+          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ env.EC2_PUBLIC_IP }} << 'EOF'
             set -e
-            docker pull ${{ secrets.DOCKER_USERNAME }}/nodejs-app:latest
+            docker pull ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/my-app:$IMAGE_TAG
             docker stop nodejs-app || true
             docker rm nodejs-app || true
-            docker run -d -p 80:3000 --name nodejs-app ${{ secrets.DOCKER_USERNAME }}/nodejs-app:latest
+            docker run -d -p 80:3000 --name nodejs-app ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/my-app:$IMAGE_TAG
           EOF
