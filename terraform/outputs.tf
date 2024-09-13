@@ -20,7 +20,7 @@ output "vpc_id" {
 # Output the EC2 Instance ID
 output "ec2_instance_id" {
   description = "The ID of the created EC2 instance"
-  value       = aws_instance._with_profile.id
+  value       = aws_instance.app_instance_with_profile.public_ip
 }
 
 # Output the IAM role used by the EC2 instance
