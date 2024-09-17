@@ -1,46 +1,45 @@
-name: Build and Push to ECR
+  name: CI/CD
 
 on:
   push:
-    branches:
-      - main
 
 jobs:
-  build:
+  docker:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
         with:
-          node-version: '20.x'
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Install dependencies
-        run: npm install
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v6
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          push: true
+          tags: relatewiththeworld/chucknorrisapp:latest
 
-      - name: Login to Amazon ECR
-        uses: aws-actions/amazon-ecr-login@v1
+      - name: SSH to EC2 and Deploy Docker Image
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            sudo docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+            sudo docker pull relatewiththeworld/chucknorrisapp:latest
+            sudo docker stop chucknorrisapp || true
+            sudo docker rm chucknorrisapp || true
+            sudo docker run -d --name chucknorrisapp -p 80:3000 relatewiththeworld/chucknorrisapp:latest
 
-      # Manual Login to Amazon ECR
-      - name: Manual Login to Amazon ECR
-        run: |
-          aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.ECR_REPOSITORY_URI }}
-
-      - name: Build Docker image
-        run: docker build -t my-node-app .
-
-      - name: Tag Docker image
-        run: docker tag my-node-app:latest ${{ secrets.ECR_REPOSITORY_URI }}:latest
-
-      - name: Push Docker image to ECR
-        run: docker push ${{ secrets.ECR_REPOSITORY_URI }}:latest
+        

@@ -396,3 +396,8 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+*.terraform
+*.terrorm.lock.hcl
+*.terraform.tfstate.backup
+*terraform.tfstate
