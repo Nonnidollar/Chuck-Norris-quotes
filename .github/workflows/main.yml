@@ -27,7 +27,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           push: true
-          tags: relatewiththeworld/chucknorrisapp:latest
+          tags: donhadley/chucknorrisapp:latest
 
       - name: SSH to EC2 and Deploy Docker Image
         uses: appleboy/ssh-action@v0.1.7
@@ -37,9 +37,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             sudo docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
-            sudo docker pull relatewiththeworld/chucknorrisapp:latest
+            sudo docker pull donhadley/chucknorrisapp:latest
             sudo docker stop chucknorrisapp || true
             sudo docker rm chucknorrisapp || true
-            sudo docker run -d --name chucknorrisapp -p 80:3000 relatewiththeworld/chucknorrisapp:latest
-
-        
+            sudo docker run -d --name chucknorrisapp -p 80:3000 donhadley/chucknorrisapp:latest
